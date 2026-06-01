@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Irrigation System | IoT Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono&display=swap"
+        rel="stylesheet">
+    <style>
+        /* Modern UI Styling */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --green-900: #1a3d2b;
+            --green-700: #2d6a4f;
+            --green-500: #40916c;
+            --green-300: #74c69d;
+            --green-100: #d8f3dc;
+            --sky: #457b9d;
+            --sun: #e9952a;
+            --bg: #f2f4f0;
+            --card: #ffffff;
+            --border: #e2e8e2;
+            --text: #1a2e1a;
+            --muted: #6b7c6b;
+            --danger: #c0392b;
+            --shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding-bottom: 40px;
+        }
+
+        .header {
+            background: var(--green-900);
+            color: white;
+            padding: 0 32px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo-mark {
+            width: 36px;
+            height: 36px;
+            background: var(--green-300);
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            font-size: 18px;
+            margin-right: 12px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 28px 24px 0;
+        }
+
+        .grid-main {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr) 340px;
+            gap: 18px;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        .card-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        .dual-num {
+            font-size: 1.9rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .dual-unit {
+            font-size: 0.82rem;
+            color: var(--muted);
+        }
+
+        .pump-btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 15px;
+        }
+
+        .pump-btn.off {
+            background: var(--green-700);
+            color: white;
+        }
+
+        .pump-btn.on {
+            background: var(--danger);
+            color: white;
+        }
+
+        .pump-btn.auto {
+            background: var(--sky);
+            color: white;
+        }
+
+        .condition-row {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            margin-top: 14px;
+            font-size: 0.78rem;
+            font-family: 'DM Mono', monospace;
+        }
+
+        .condition-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: var(--bg);
+        }
+
+        .cond-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .cond-dot.met   { background: #27ae60; box-shadow: 0 0 6px rgba(39,174,96,.5); }
+        .cond-dot.unmet { background: #bdc3c7; }
+
+        .log-scroll {
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.75rem;
+            background: #fafafa;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .live-dot {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--green-300);
+            font-size: 0.8rem;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4ade80;
+            box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+        }
+
+        /* ── Water Level & Potentiometer additions ── */
+        .grid-sensors {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-top: 18px;
+        }
+
+        .water-tank {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            width: 80px;
+            height: 100px;
+            border: 3px solid var(--sky);
+            border-radius: 6px 6px 10px 10px;
+            overflow: hidden;
+            background: #eaf4fb;
+            margin: 12px auto 8px;
+            position: relative;
+        }
+
+        .water-fill {
+            width: 100%;
+            background: linear-gradient(180deg, #78c6f5 0%, #1a7abf 100%);
+            transition: height 0.6s ease;
+            border-radius: 0 0 7px 7px;
+        }
+
+        .water-pct-label {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text);
+            pointer-events: none;
+        }
+
+        .threshold-bar-track {
+            height: 10px;
+            background: var(--border);
+            border-radius: 6px;
+            margin-top: 14px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .threshold-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--green-500), var(--sun));
+            border-radius: 6px;
+            transition: width 0.6s ease;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="header">
+        <div style="display: flex; align-items: center;">
+            <div class="logo-mark">🌱</div>
+            <h1>Smart Irrigation Gateway</h1>
+        </div>
+        <div class="live-dot">
+            <div class="dot"></div><span id="live-label">LIVE GATEWAY</span>
+        </div>
+    </header>
+
+    <!-- Shown when Arduino is not connected -->
+    <div th:unless="${connected}" style="background:linear-gradient(90deg,#7c0000,#b80a0a,#7c0000);color:#fef2f2;text-align:center;padding:8px 20px;font-size:0.8rem;font-weight:600;letter-spacing:.04em;">⚠ ARDUINO DISCONNECTED — Plug in your R4 WiFi via USB and restart the server.</div>
+
+    <div class="container">
+        <div class="grid-main">
+            <div class="card">
+                <div class="card-label">Temperature & Humidity</div>
+                <div class="dual-num" id="temp-val">--<span class="dual-unit">°C</span></div>
+                <div class="dual-num" id="hum-val" style="font-size: 1.2rem; margin-top: 10px;">--<span
+                        class="dual-unit">% Hum</span></div>
+                <canvas id="tempChart" style="margin-top:15px;"></canvas>
+            </div>
+
+            <div class="card">
+                <div class="card-label">IR Proximity (Tank Level)</div>
+                <div class="dual-num" id="ir-val">--<span class="dual-unit"> / 1023</span></div>
+                <div id="tank-status" style="margin-top:10px; font-weight:bold;">Scanning...</div>
+            </div>
+
+            <div class="card">
+                <div class="card-label">Light Intensity (LDR)</div>
+                <div class="dual-num" id="ldr-val">--<span class="dual-unit">%</span></div>
+                <div id="sun-status" style="margin-top:10px;">Calculating...</div>
+            </div>
+
+            <div class="card" style="grid-row: span 2;">
+                <div class="card-label">Pump Control</div>
+                <div style="text-align:center; padding: 20px 0;">
+                    <span id="pump-icon" style="font-size: 4rem;">💧</span>
+                    <div id="pump-status" style="margin-top:10px; font-weight:bold;">STANDBY</div>
+                </div>
+                <button id="pumpBtn" class="pump-btn off" onclick="togglePump()">▶ ACTIVATE PUMP</button>
+                <button id="autoBtn" class="pump-btn auto" onclick="setAutoMode()" style="margin-top:8px;">🔄 SET AUTO</button>
+
+                <!-- Auto-pump condition indicators -->
+                <div class="condition-row">
+                    <div class="condition-item">
+                        <div class="cond-dot unmet" id="cond-temp"></div>
+                        <span id="cond-temp-lbl">Temp &ge; 30&deg;C: --</span>
+                    </div>
+                    <div class="condition-item">
+                        <div class="cond-dot unmet" id="cond-light"></div>
+                        <span id="cond-light-lbl">Light &le; 30%: --</span>
+                    </div>
+                    <div class="condition-item">
+                        <div class="cond-dot unmet" id="cond-tank"></div>
+                        <span id="cond-tank-lbl">Tank has water: --</span>
+                    </div>
+                </div>
+                <div id="auto-status" style="margin-top:10px;font-size:0.72rem;color:var(--muted);font-family:'DM Mono',monospace;text-align:center;">
+                    Mode: MANUAL
+                </div>
+            </div>
+
+            <div class="card" style="grid-column: span 3;">
+                <div class="card-label">Activity Log</div>
+                <div class="log-scroll" id="log-scroll">
+                    <div>[System] Waiting for Java Gateway...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Water Level (Ultrasonic) + Potentiometer Threshold ── -->
+        <div class="grid-sensors">
+            <div class="card">
+                <div class="card-label">Water Level — Ultrasonic (Trig D3 / Echo D4)</div>
+                <div class="water-tank" id="water-tank-visual">
+                    <div class="water-fill" id="water-fill" style="height:0%;"></div>
+                    <div class="water-pct-label" id="water-pct-label">--%</div>
+                </div>
+                <div style="text-align:center;">
+                    <span class="dual-num" id="water-dist-val">--<span class="dual-unit"> cm</span></span>
+                </div>
+                <div id="water-status" style="margin-top:8px; font-weight:bold; text-align:center;">Scanning...</div>
+            </div>
+
+            <div class="card">
+                <div class="card-label">Threshold Dial — Potentiometer (A0)</div>
+                <div style="text-align:center; padding-top:10px;">
+                    <span class="dual-num" id="pot-val">--<span class="dual-unit"> cm</span></span>
+                    <div class="dual-unit" style="margin-top:4px;">Distance threshold (0 – 100 cm)</div>
+                </div>
+                <div class="threshold-bar-track" style="margin-top:18px;">
+                    <div class="threshold-bar-fill" id="pot-bar" style="width:0%;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--muted); margin-top:4px;">
+                    <span>0 cm</span><span>Full</span><span>100 cm</span>
+                </div>
+                <div id="pot-status" style="margin-top:12px; font-size:0.8rem; text-align:center; color:var(--muted);">
+                    Pump cuts off when water distance exceeds this value.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pumpOn    = false;
+        let autoMode  = false;   // tracks whether we're in AUTO mode
+
+        // ── Fetch sensor data from Java every second ─────────────
+        async function updateFromJava() {
+            try {
+                const response = await fetch('/api/sensors');
+                const d = await response.json();
+
+                // 1. Temperature & Humidity
+                document.getElementById('temp-val').innerHTML =
+                    `${d.temperature.toFixed(1)}<span class="dual-unit">°C</span>`;
+                document.getElementById('hum-val').innerHTML =
+                    `${d.humidity.toFixed(1)}<span class="dual-unit">% Hum</span>`;
+
+                // 2. IR / Tank
+                document.getElementById('ir-val').innerHTML =
+                    `${d.irRaw}<span class="dual-unit"> / 1023</span>`;
+                const tank = document.getElementById('tank-status');
+                if (d.tankEmpty) {
+                    tank.textContent = "⚠️ TANK EMPTY";
+                    tank.style.color = "#c0392b";
+                } else {
+                    tank.textContent = "✅ WATER OK";
+                    tank.style.color = "#27ae60";
+                }
+
+                // 3. LDR / Light
+                document.getElementById('ldr-val').innerHTML =
+                    `${Math.round(d.lightIntensity)}<span class="dual-unit">%</span>`;
+                document.getElementById('sun-status').textContent =
+                    d.lightIntensity < 30 ? "🌙 LOW LIGHT" : "☀️ BRIGHT";
+
+                // 4. Auto-pump condition indicators
+                const tempMet  = d.temperature    >= 30;
+                const lightMet = d.lightIntensity <= 30;
+                const tankMet  = !d.tankEmpty;
+                setCondition('temp',  tempMet,  `Temp ≥ 30°C: ${d.temperature.toFixed(1)}°C`);
+                setCondition('light', lightMet, `Light ≤ 30%: ${Math.round(d.lightIntensity)}%`);
+                setCondition('tank',  tankMet,  `Tank has water: ${tankMet ? 'YES' : 'NO'}`);
+
+                // Auto-pump fires when all 3 are met (Java already sends the command;
+                // this just updates the UI label to reflect what's happening)
+                if (autoMode) {
+                    const allMet = tempMet && lightMet && tankMet;
+                    document.getElementById('auto-status').textContent =
+                        allMet ? 'Mode: AUTO — 🟢 PUMPING' : 'Mode: AUTO — ⏸ Waiting…';
+                }
+
+                // 5. Sync pump state from Java
+                if (d.pump !== pumpOn) syncPumpUI(d.pump);
+
+                // 6. Water Level (Ultrasonic)
+                const dist      = (d.waterDistance  ?? 0).toFixed(1);
+                const thresh    = (d.potThreshold    ?? 0).toFixed(1);
+                const levelPct  = thresh > 0
+                    ? Math.max(0, Math.min(100, ((thresh - d.waterDistance) / thresh) * 100))
+                    : 0;
+                document.getElementById('water-dist-val').innerHTML =
+                    `${dist}<span class="dual-unit"> cm</span>`;
+                document.getElementById('water-fill').style.height  = levelPct.toFixed(0) + '%';
+                document.getElementById('water-pct-label').textContent = levelPct.toFixed(0) + '%';
+                const wStatus = document.getElementById('water-status');
+                if (d.tankEmpty) {
+                    wStatus.textContent = '⚠️ WATER LOW';
+                    wStatus.style.color = '#c0392b';
+                } else {
+                    wStatus.textContent = '✅ LEVEL OK';
+                    wStatus.style.color = '#27ae60';
+                }
+
+                // 7. Potentiometer Threshold
+                const potBarPct = Math.min(100, (d.potThreshold ?? 0));
+                document.getElementById('pot-val').innerHTML =
+                    `${thresh}<span class="dual-unit"> cm</span>`;
+                document.getElementById('pot-bar').style.width = potBarPct + '%';
+                document.getElementById('pot-status').textContent =
+                    `Safety cut-off: pump stops if distance > ${thresh} cm`;
+
+            } catch (e) {
+                addLog("🔴 Server connection lost: " + e.message);
+            }
+        }
+
+        function setCondition(id, met, label) {
+            document.getElementById('cond-' + id).className = 'cond-dot ' + (met ? 'met' : 'unmet');
+            document.getElementById('cond-' + id + '-lbl').textContent = label;
+        }
+
+        // ── Manual pump toggle ────────────────────────────────────
+        async function togglePump() {
+            const action = pumpOn ? 'OFF' : 'ON';
+            autoMode = false;
+            document.getElementById('auto-status').textContent = 'Mode: MANUAL';
+
+            // Update UI immediately — don't wait for the next 1-second poll
+            syncPumpUI(action === 'ON');
+
+            try {
+                await fetch(`/api/pump?action=${action}`, { method: 'POST' });
+                addLog(`💧 Manual command: PUMP ${action}`);
+            } catch (e) {
+                // Roll back UI if the request failed
+                syncPumpUI(action !== 'ON');
+                addLog('🔴 Command failed: ' + e.message);
+            }
+        }
+
+        // ── Set AUTO mode ─────────────────────────────────────────
+        async function setAutoMode() {
+            autoMode = true;
+            document.getElementById('auto-status').textContent = 'Mode: AUTO — ⏸ Waiting…';
+            document.getElementById('autoBtn').textContent = '✅ AUTO ACTIVE';
+            try {
+                await fetch('/api/pump?action=AUTO', { method: 'POST' });
+                addLog('🔄 Auto-pump enabled (temp≥30 AND light≤30% AND tank has water)');
+            } catch (e) {
+                addLog('🔴 Failed to set auto mode: ' + e.message);
+            }
+        }
+
+        // ── Update pump UI ────────────────────────────────────────
+        function syncPumpUI(state) {
+            pumpOn = state;
+            const btn    = document.getElementById('pumpBtn');
+            const status = document.getElementById('pump-status');
+            const icon   = document.getElementById('pump-icon');
+
+            if (pumpOn) {
+                btn.className   = 'pump-btn on';
+                btn.textContent = '⏹ STOP PUMP';
+                status.textContent = 'RUNNING';
+                status.style.color = '#c0392b';
+                icon.textContent   = '🚿';
+                if (!autoMode) {
+                    document.getElementById('autoBtn').textContent = '🔄 SET AUTO';
+                }
+            } else {
+                btn.className   = 'pump-btn off';
+                btn.textContent = '▶ ACTIVATE PUMP';
+                status.textContent = 'STANDBY';
+                status.style.color = '#2d6a4f';
+                icon.textContent   = '💧';
+                if (!autoMode) {
+                    document.getElementById('autoBtn').textContent = '🔄 SET AUTO';
+                }
+            }
+        }
+
+        // ── Activity log ──────────────────────────────────────────
+        function addLog(msg) {
+            const log  = document.getElementById('log-scroll');
+            const time = new Date().toLocaleTimeString();
+            log.innerHTML = `<div>[${time}] ${msg}</div>` + log.innerHTML;
+        }
+
+        // Poll Java every second
+        addLog('⚙️ Gateway initialising…');
+        updateFromJava();
+        setInterval(updateFromJava, 1000);
+    </script>
+</body>
+
+</html>
